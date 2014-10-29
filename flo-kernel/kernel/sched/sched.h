@@ -311,6 +311,16 @@ struct rt_rq {
 #endif
 };
 
+struct grr_node {
+	struct task_struct *p;
+	struct list_head list; 
+};
+
+struct grr_rq {
+	int nr_running;
+	struct list_head queue;
+};
+
 #ifdef CONFIG_SMP
 
 /*
@@ -339,6 +349,7 @@ struct root_domain {
 extern struct root_domain def_root_domain;
 
 #endif /* CONFIG_SMP */
+
 
 /*
  * This is the main, per-CPU runqueue data structure.
@@ -372,6 +383,7 @@ struct rq {
 
 	struct cfs_rq cfs;
 	struct rt_rq rt;
+	struct grr_rq grr;
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
@@ -1156,6 +1168,7 @@ extern void print_rt_stats(struct seq_file *m, int cpu);
 
 extern void init_cfs_rq(struct cfs_rq *cfs_rq);
 extern void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq);
+extern void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq);
 extern void unthrottle_offline_cfs_rqs(struct rq *rq);
 
 extern void account_cfs_bandwidth_used(int enabled, int was_enabled);

@@ -1,4 +1,5 @@
 #include "sched.h"
+#include <linux/slab.h>
 
 /*
  * Grouper Round-Robin scheduling class.
@@ -18,7 +19,6 @@ select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 static void check_preempt_curr_grr(struct rq *rq, struct task_struct *p, int flags)
 {
 	printk(KERN_WARNING "NICOLAS: Check preempt curr\n");
-	resched_task(rq->idle);
 }
 
 static struct task_struct *pick_next_task_grr(struct rq *rq)
@@ -30,10 +30,18 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 static void
 dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	//raw_spin_unlock_irq(&rq->lock);
-	//printk(KERN_ERR "bad: scheduling from the idle thread!\n");
-	//dump_stack();
-	//raw_spin_lock_irq(&rq->lock);
+	struct grr_rq *grr_rq = &rq->grr;
+	struct grr_node *node, *next;
+
+	list_for_each_entry_safe(node, next, &grr_rq->queue, list) {
+		if (node->p == p) {
+			grr_rq->nr_running--;
+			list_del(&node->list);
+			kfree(node);
+			break;
+		}
+	}
+
 	printk(KERN_WARNING "NICOLAS: Dequeue task called\n");
 }
 
@@ -46,7 +54,25 @@ yield_task_grr(struct rq *rq)
 static void
 enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	printk(KERN_WARNING "NICOLAS: Enqueue task called\n");
+	struct grr_rq *grr_rq = &rq->grr;
+	struct grr_node *node;
+
+
+	node = kmalloc(sizeof(struct grr_node), GFP_KERNEL);
+
+	if (node == NULL)
+		return; /* What should we do? */
+
+	node->p = p;
+	grr_rq->nr_running++;
+
+	list_add_tail(&node->list, &grr_rq->queue);
+
+	list_for_each_entry(node, &grr_rq->queue, list) {
+		printk(KERN_WARNING "PID: %d\n", node->p->pid);
+	}
+
+	printk(KERN_WARNING "NR_RUNNING: %d\n", grr_rq->nr_running);
 }
 
 
@@ -58,12 +84,26 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *p)
 
 static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
-	printk(KERN_WARNING "NICOLAS: Task tick called\n");
+	struct grr_node *node;
+
+	node = list_entry(&rq->grr.queue, struct grr_node, list);
+
+	if (--curr->grr.time_slice)
+		return;
+
+	if (rq->grr.nr_running > 1) {
+		list_move_tail(&rq->grr.queue, &node->list);
+		set_tsk_need_resched(curr);
+	}
 }
 
 static void set_curr_task_grr(struct rq *rq)
 {
-	printk(KERN_WARNING "Set curr task called");
+	struct task_struct *p = rq->curr;
+
+	printk(KERN_WARNING "Set curr task called: \n");
+
+	p->se.exec_start = rq->clock_task;
 }
 
 static void switched_to_grr(struct rq *rq, struct task_struct *p)
@@ -80,6 +120,13 @@ prio_changed_grr(struct rq *rq, struct task_struct *p, int oldprio)
 static unsigned int get_rr_interval_grr(struct rq *rq, struct task_struct *task)
 {
 	return 0;
+}
+
+void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq)
+{
+	grr_rq->nr_running = 0;
+
+	INIT_LIST_HEAD(&grr_rq->queue);
 }
 
 /*
