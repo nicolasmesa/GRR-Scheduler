@@ -311,11 +311,6 @@ struct rt_rq {
 #endif
 };
 
-struct grr_node {
-	struct task_struct *p;
-	struct list_head list; 
-};
-
 struct grr_rq {
 	int nr_running;
 	struct list_head queue;

@@ -31,15 +31,12 @@ static void
 dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct grr_rq *grr_rq = &rq->grr;
-	struct grr_node *node, *next;
+	struct  sched_grr_entity *entity = &p->grr;
 
-	list_for_each_entry_safe(node, next, &grr_rq->queue, list) {
-		if (node->p == p) {
-			grr_rq->nr_running--;
-			list_del(&node->list);
-			kfree(node);
-			break;
-		}
+	if (grr_rq->nr_running) {
+		grr_rq->nr_running--;
+		list_del(&entity->list);
+		kfree(entity);
 	}
 
 	printk(KERN_WARNING "NICOLAS: Dequeue task called\n");
@@ -55,21 +52,19 @@ static void
 enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct grr_rq *grr_rq = &rq->grr;
-	struct grr_node *node;
+	struct sched_grr_entity *entity = &p->grr;
+	struct task_struct *t;
 
-
-	node = kmalloc(sizeof(struct grr_node), GFP_KERNEL);
-
-	if (node == NULL)
-		return; /* What should we do? */
-
-	node->p = p;
 	grr_rq->nr_running++;
 
-	list_add_tail(&node->list, &grr_rq->queue);
+	list_add_tail(&entity->list, &grr_rq->queue);
 
-	list_for_each_entry(node, &grr_rq->queue, list) {
-		printk(KERN_WARNING "PID: %d\n", node->p->pid);
+//	t = container_of(entity, struct task_struct, grr);
+//	printk(KERN_WARNING "PID: %d\n", t->pid);
+
+	list_for_each_entry(entity, &grr_rq->queue, list) {
+	//	t = container_of(entity, struct task_struct, grr);
+		printk(KERN_WARNING "PID: \n");
 	}
 
 	printk(KERN_WARNING "NR_RUNNING: %d\n", grr_rq->nr_running);
@@ -84,15 +79,14 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *p)
 
 static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
-	struct grr_node *node;
+	return;
+	struct sched_grr_entity *entity = &curr->grr;
 
-	node = list_entry(&rq->grr.queue, struct grr_node, list);
-
-	if (--curr->grr.time_slice)
+	if (--(entity->time_slice))
 		return;
 
 	if (rq->grr.nr_running > 1) {
-		list_move_tail(&rq->grr.queue, &node->list);
+		list_move_tail(&rq->grr.queue, &entity->list);
 		set_tsk_need_resched(curr);
 	}
 }
