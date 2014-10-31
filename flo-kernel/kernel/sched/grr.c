@@ -36,7 +36,6 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	if (grr_rq->nr_running) {
 		grr_rq->nr_running--;
 		list_del(&entity->list);
-		kfree(entity);
 	}
 
 	printk(KERN_WARNING "NICOLAS: Dequeue task called\n");
@@ -59,11 +58,9 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 
 	list_add_tail(&entity->list, &grr_rq->queue);
 
-//	t = container_of(entity, struct task_struct, grr);
-//	printk(KERN_WARNING "PID: %d\n", t->pid);
 
 	list_for_each_entry(entity, &grr_rq->queue, list) {
-	//	t = container_of(entity, struct task_struct, grr);
+		t = container_of(entity, struct task_struct, grr);
 		printk(KERN_WARNING "PID: \n");
 	}
 
