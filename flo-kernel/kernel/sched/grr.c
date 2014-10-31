@@ -26,7 +26,6 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 	struct grr_rq *grr_rq = &rq->grr;
 	struct  sched_grr_entity *entity;
 	struct task_struct *p;
-	static int a = 1;
 
 	/* No tasks in queue */
 	if (list_empty(&grr_rq->queue)) 
@@ -36,7 +35,7 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 
 	p = container_of(entity, struct task_struct, grr);
 
-	printk(KERN_WARNING "pick next: %d, %d, %d\n", p->pid, grr_rq->nr_running, a);
+	printk(KERN_WARNING "pick next: %d, %d\n", p->pid, grr_rq->nr_running);
 
 	return p;
 }
@@ -66,7 +65,6 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct grr_rq *grr_rq = &rq->grr;
 	struct sched_grr_entity *entity = &p->grr;
-	struct task_struct *t;
 
 	grr_rq->nr_running++;
 
