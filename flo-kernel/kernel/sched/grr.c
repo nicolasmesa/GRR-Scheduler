@@ -18,13 +18,27 @@ select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
  */
 static void check_preempt_curr_grr(struct rq *rq, struct task_struct *p, int flags)
 {
-	printk(KERN_WARNING "NICOLAS: Check preempt curr\n");
+	//printk(KERN_WARNING "NICOLAS: Check preempt curr\n");
 }
 
 static struct task_struct *pick_next_task_grr(struct rq *rq)
 {
-	//printk(KERN_WARNING "NICOLAS: Pick next task called\n");
-	return NULL;
+	struct grr_rq *grr_rq = &rq->grr;
+	struct  sched_grr_entity *entity;
+	struct task_struct *p;
+	static int a = 1;
+
+	/* No tasks in queue */
+	if (list_empty(&grr_rq->queue)) 
+		return NULL;
+
+	entity = list_first_entry(&grr_rq->queue, struct sched_grr_entity, list);
+
+	p = container_of(entity, struct task_struct, grr);
+
+	printk(KERN_WARNING "pick next: %d, %d, %d\n", p->pid, grr_rq->nr_running, a);
+
+	return p;
 }
 
 static void
@@ -56,13 +70,8 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 
 	grr_rq->nr_running++;
 
-	list_add_tail(&entity->list, &grr_rq->queue);
-
-
-	list_for_each_entry(entity, &grr_rq->queue, list) {
-		t = container_of(entity, struct task_struct, grr);
-		printk(KERN_WARNING "PID: \n");
-	}
+	//list_add_tail(&entity->list, &grr_rq->queue);
+	list_add(&entity->list, &grr_rq->queue);
 
 	printk(KERN_WARNING "NR_RUNNING: %d\n", grr_rq->nr_running);
 }
@@ -76,14 +85,16 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *p)
 
 static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
-	return;
 	struct sched_grr_entity *entity = &curr->grr;
 
-	if (--(entity->time_slice))
+	if ((--(entity->time_slice)) > 0)
 		return;
 
+	entity->time_slice = GRR_TIMESLICE;
+
 	if (rq->grr.nr_running > 1) {
-		list_move_tail(&rq->grr.queue, &entity->list);
+		printk(KERN_WARNING "Entered\n");
+		list_move(&rq->grr.queue, &entity->list);
 		set_tsk_need_resched(curr);
 	}
 }
@@ -95,6 +106,7 @@ static void set_curr_task_grr(struct rq *rq)
 	printk(KERN_WARNING "Set curr task called: \n");
 
 	p->se.exec_start = rq->clock_task;
+	p->grr.time_slice = GRR_TIMESLICE;
 }
 
 static void switched_to_grr(struct rq *rq, struct task_struct *p)
