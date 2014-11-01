@@ -41,29 +41,8 @@ find_min_rq_cpu(void)
 static int
 select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 {
-	/*
-	int cpu, min_cpu = 0, min_running = 0, first = 1;
-	struct rq *rq;
-	printk(KERN_WARNING "Select task rq called\n");
 
-	for_each_possible_cpu(cpu) {
-		rq = cpu_rq(cpu);
-
-		if (first) {
-			min_running = rq->grr.nr_running;
-			min_cpu = cpu;
-			first = 0;
-			continue;
-		}
-
-		if (min_running > rq->grr.nr_running) {
-			min_running = rq->grr.nr_running;
-			min_cpu = cpu;
-		}
-
-		trace_printk("CPU: %d\tNR: %d\n", cpu, rq->grr.nr_running);
-	}*/
-
+	int min_cpu = 0;
 	int min_cpu = find_min_rq_cpu();
 	struct rq *rq = cpu_rq(min_cpu);
 	trace_printk("Selected CPU: %d\tNR: %d\n", min_cpu, rq->grr.nr_running);
