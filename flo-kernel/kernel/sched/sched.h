@@ -313,6 +313,8 @@ struct rt_rq {
 
 struct grr_rq {
 	int nr_running;
+	unsigned long tick_count;
+	unsigned long load_balance_thresh;
 	struct list_head queue;
 };
 

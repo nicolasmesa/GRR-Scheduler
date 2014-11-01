@@ -1,5 +1,6 @@
 #include "sched.h"
 #include <linux/slab.h>
+#include <linux/interrupt.h>
 
 /*
  * Grouper Round-Robin scheduling class.
@@ -7,9 +8,19 @@
 
 #ifdef CONFIG_SMP
 
-void trigger_load_balance_grr(struct rq *rq, int cpu) {
+void trigger_load_balance_grr(struct rq *rq, int cpu) 
+{
+	struct grr_rq *grr_rq = &rq->grr;
 
-	trace_printk("Calling load balance now.\n");
+	grr_rq->tick_count++;
+
+	trace_printk("grr_rq->tick_count = %lu\tgrr_rq->load_balance_thresh = %lu\n", grr_rq->tick_count, grr_rq->load_balance_thresh);
+
+	if (grr_rq->tick_count >= grr_rq->load_balance_thresh) {
+		grr_rq->load_balance_thresh += GRR_LB_THRESH;
+		raise_softirq(SCHED_SOFTIRQ_GRR);
+	}
+
 	return;
 }
 
@@ -170,9 +181,21 @@ static unsigned int get_rr_interval_grr(struct rq *rq, struct task_struct *task)
 	return 0;
 }
 
+static void run_rebalance_domains_grr(struct softirq_action *h)
+{
+	trace_printk("Called!\n");
+}
+
 void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq)
 {
+#ifdef CONFIG_SMP
+	open_softirq(SCHED_SOFTIRQ_GRR, run_rebalance_domains_grr);
+#endif
+
 	grr_rq->nr_running = 0;
+
+	grr_rq->tick_count = 0;
+	grr_rq->load_balance_thresh = GRR_LB_THRESH;
 
 	INIT_LIST_HEAD(&grr_rq->queue);
 }

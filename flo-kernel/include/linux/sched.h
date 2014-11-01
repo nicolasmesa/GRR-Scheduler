@@ -1262,6 +1262,8 @@ struct sched_grr_entity {
 #define RR_TIMESLICE		(100 * HZ / 1000)
 #define GRR_TIMESLICE		(100 * HZ / 1000)
 
+#define GRR_LB_THRESH		(500 * HZ / 1000)
+
 struct rcu_node;
 
 enum perf_event_task_context {
