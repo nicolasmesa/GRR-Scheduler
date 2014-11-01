@@ -7,10 +7,8 @@
 
 #ifdef CONFIG_SMP
 
-static int find_min_rq_cpu();
-
 static int
-find_min_rq_cpu()
+find_min_rq_cpu(void)
 {
 	int cpu, min_cpu, min_running = 0, first = 1;
 	struct rq *rq;
