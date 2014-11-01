@@ -7,6 +7,8 @@
 
 #ifdef CONFIG_SMP
 
+static int find_min_rq_cpu();
+
 static int
 find_min_rq_cpu()
 {
@@ -17,7 +19,7 @@ find_min_rq_cpu()
 		rq = cpu_rq(cpu);
 		
 		if(first) {
-			min_running = rq->gr.nr_running;
+			min_running = rq->grr.nr_running;
 			min_cpu = cpu;
 			first = 0;
 			continue;
