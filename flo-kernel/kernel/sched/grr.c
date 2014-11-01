@@ -49,7 +49,8 @@ select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 {
 
 	int min_cpu = 0;
-	int min_cpu = find_min_rq_cpu();
+
+	min_cpu = find_min_rq_cpu();
 	struct rq *rq = cpu_rq(min_cpu);
 	trace_printk("Selected CPU: %d\tNR: %d\n", min_cpu, rq->grr.nr_running);
 
