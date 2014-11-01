@@ -1768,7 +1768,8 @@ void sched_fork(struct task_struct *p)
 	 */
 	if (unlikely(p->sched_reset_on_fork)) {
 		if (task_has_rt_policy(p)) {
-			p->policy = SCHED_NORMAL;
+			p->policy = SCHED_GRR;
+			//p->policy = SCHED_NORMAL;
 			p->static_prio = NICE_TO_PRIO(0);
 			p->rt_priority = 0;
 		} else if (PRIO_TO_NICE(p->static_prio) < 0)
@@ -1785,8 +1786,8 @@ void sched_fork(struct task_struct *p)
 	}
 
 	if (!rt_prio(p->prio))
-		p->sched_class = &fair_sched_class;
-		//p->sched_class = &sched_grr_class;
+		p->sched_class = &sched_grr_class;
+		//p->sched_class = &fair_sched_class;
 
 	if (p->sched_class->task_fork)
 		p->sched_class->task_fork(p);
@@ -4788,6 +4789,7 @@ SYSCALL_DEFINE1(sched_get_priority_max, int, policy)
 	case SCHED_NORMAL:
 	case SCHED_BATCH:
 	case SCHED_IDLE:
+	case SCHED_GRR:
 		ret = 0;
 		break;
 	}
@@ -4813,6 +4815,7 @@ SYSCALL_DEFINE1(sched_get_priority_min, int, policy)
 	case SCHED_NORMAL:
 	case SCHED_BATCH:
 	case SCHED_IDLE:
+	case SCHED_GRR:
 		ret = 0;
 	}
 	return ret;
@@ -7168,7 +7171,8 @@ static void normalize_task(struct rq *rq, struct task_struct *p)
 	on_rq = p->on_rq;
 	if (on_rq)
 		dequeue_task(rq, p, 0);
-	__setscheduler(rq, p, SCHED_NORMAL, 0);
+	//__setscheduler(rq, p, SCHED_NORMAL, 0);
+	__setscheduler(rq, p, SCHED_GRR, 0);
 	if (on_rq) {
 		enqueue_task(rq, p, 0);
 		resched_task(rq->curr);

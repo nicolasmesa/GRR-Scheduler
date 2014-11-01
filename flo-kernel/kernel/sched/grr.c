@@ -9,8 +9,31 @@
 static int
 select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 {
-	printk(KERN_WARNING "Select task rq called\n");
-	return task_cpu(p); /* IDLE tasks as never migrated */
+	int cpu, min_cpu = 0, min_running = 0, first = 1;
+	struct rq *rq;
+	//printk(KERN_WARNING "Select task rq called\n");
+
+	for_each_possible_cpu(cpu) {
+		rq = cpu_rq(cpu);
+
+		if (first) {
+			min_running = rq->grr.nr_running;
+			min_cpu = cpu;
+			first = 0;
+			continue;
+		}
+
+		if (min_running > rq->grr.nr_running) {
+			min_running = rq->grr.nr_running;
+			min_cpu = cpu;
+		}
+
+		trace_printk("CPU: %d\tNR: %d\n", cpu, rq->grr.nr_running);
+	}
+
+	trace_printk("Selected CPU: %d\tNR: %d\n", min_cpu, min_running);
+
+	return min_cpu;
 }
 #endif /* CONFIG_SMP */
 /*
@@ -37,7 +60,7 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 
 	p = container_of(entity, struct task_struct, grr);
 
-	printk(KERN_WARNING "pick next: %d, %d\n", p->pid, grr_rq->nr_running);
+	//printk(KERN_WARNING "pick next: %d, %d\n", p->pid, grr_rq->nr_running);
 
 	return p;
 }
@@ -53,13 +76,13 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 		list_del(&entity->list);
 	}
 
-	printk(KERN_WARNING "NICOLAS: Dequeue task called\n");
+	//printk(KERN_WARNING "NICOLAS: Dequeue task called\n");
 }
 
 static void
 yield_task_grr(struct rq *rq)
 {
-	printk(KERN_WARNING "NICOLAS: Called yield task\n");
+	//printk(KERN_WARNING "NICOLAS: Called yield task\n");
 }
 
 static void
@@ -73,14 +96,15 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	//list_add_tail(&entity->list, &grr_rq->queue);
 	list_add(&entity->list, &grr_rq->queue);
 
-	printk(KERN_WARNING "NR_RUNNING: %d\n", grr_rq->nr_running);
+	//printk(KERN_WARNING "NR_RUNNING: %d\n", grr_rq->nr_running);
+	//printk(KERN_WARNING "SCHED: %d\n", p->policy);
 }
 
 
 
 static void put_prev_task_grr(struct rq *rq, struct task_struct *p)
 {
-	printk(KERN_WARNING "NICOLAS: Put prev task called\n");
+	//printk(KERN_WARNING "NICOLAS: Put prev task called\n");
 }
 
 static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
@@ -93,7 +117,7 @@ static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 	entity->time_slice = GRR_TIMESLICE;
 
 	if (rq->grr.nr_running > 1) {
-		printk(KERN_WARNING "Entered\n");
+		//printk(KERN_WARNING "Entered\n");
 		list_move(&rq->grr.queue, &entity->list);
 		set_tsk_need_resched(curr);
 	}
@@ -103,20 +127,20 @@ static void set_curr_task_grr(struct rq *rq)
 {
 	struct task_struct *p = rq->curr;
 
-	printk(KERN_WARNING "Set curr task called: \n");
+	//printk(KERN_WARNING "Set curr task called: \n");
 	p->se.exec_start = rq->clock_task;
 	p->grr.time_slice = GRR_TIMESLICE;
 }
 
 static void switched_to_grr(struct rq *rq, struct task_struct *p)
 {
-	printk(KERN_WARNING "NICOLAS: Switched to grr\n");
+	//printk(KERN_WARNING "NICOLAS: Switched to grr\n");
 }
 
 static void
 prio_changed_grr(struct rq *rq, struct task_struct *p, int oldprio)
 {
-	printk(KERN_WARNING "NICOLAS: Prio changed grr\n");
+	//printk(KERN_WARNING "NICOLAS: Prio changed grr\n");
 }
 
 static unsigned int get_rr_interval_grr(struct rq *rq, struct task_struct *task)
