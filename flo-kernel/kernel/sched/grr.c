@@ -48,11 +48,12 @@ static int
 select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 {
 
-	int min_cpu = 0;
+	int min_cpu;
+	struct rq *rq;
 
 	min_cpu = find_min_rq_cpu();
-	struct rq *rq = cpu_rq(min_cpu);
-	trace_printk("Selected CPU: %d\tNR: %d\n", min_cpu, rq->grr.nr_running);
+	rq = cpu_rq(min_cpu);
+	//trace_printk("Selected CPU: %d\tNR: %d\n", min_cpu, rq->grr.nr_running);
 
 	return min_cpu;
 }
@@ -118,7 +119,7 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 	list_add(&entity->list, &grr_rq->queue);
 
 	//printk(KERN_WARNING "NR_RUNNING: %d\n", grr_rq->nr_running);
-	//printk(KERN_WARNING "SCHED: %d\n", p->policy);
+	//trace_printk("SCHED: %d\n", p->policy);
 }
 
 

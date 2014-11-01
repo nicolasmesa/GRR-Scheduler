@@ -3053,6 +3053,7 @@ void scheduler_tick(void)
 #ifdef CONFIG_SMP
 	rq->idle_balance = idle_cpu(cpu);
 	trigger_load_balance(rq, cpu);
+	trigger_load_balance_grr(rq, cpu);
 #endif
 }
 
