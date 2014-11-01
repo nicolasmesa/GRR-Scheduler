@@ -16,7 +16,8 @@ select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 /*
  * Idle tasks are unconditionally rescheduled:
  */
-static void check_preempt_curr_grr(struct rq *rq, struct task_struct *p, int flags)
+static void check_preempt_curr_grr(struct rq *rq,
+		struct task_struct *p, int flags)
 {
 	//printk(KERN_WARNING "NICOLAS: Check preempt curr\n");
 }
@@ -28,10 +29,11 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 	struct task_struct *p;
 
 	/* No tasks in queue */
-	if (list_empty(&grr_rq->queue)) 
+	if (list_empty(&grr_rq->queue))
 		return NULL;
 
-	entity = list_first_entry(&grr_rq->queue, struct sched_grr_entity, list);
+	entity = list_first_entry(&grr_rq->queue,
+		struct sched_grr_entity, list);
 
 	p = container_of(entity, struct task_struct, grr);
 
@@ -102,7 +104,6 @@ static void set_curr_task_grr(struct rq *rq)
 	struct task_struct *p = rq->curr;
 
 	printk(KERN_WARNING "Set curr task called: \n");
-
 	p->se.exec_start = rq->clock_task;
 	p->grr.time_slice = GRR_TIMESLICE;
 }
