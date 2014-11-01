@@ -7,6 +7,12 @@
 
 #ifdef CONFIG_SMP
 
+void trigger_load_balance_grr(struct rq *rq, int cpu) {
+
+	trace_printk("Calling load balance now.\n");
+	return;
+}
+
 static int
 find_min_rq_cpu(void)
 {
