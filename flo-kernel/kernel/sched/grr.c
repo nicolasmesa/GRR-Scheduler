@@ -14,8 +14,6 @@ void trigger_load_balance_grr(struct rq *rq, int cpu)
 
 	grr_rq->tick_count++;
 
-	trace_printk("grr_rq->tick_count = %lu\tgrr_rq->load_balance_thresh = %lu\n", grr_rq->tick_count, grr_rq->load_balance_thresh);
-
 	if (grr_rq->tick_count >= grr_rq->load_balance_thresh) {
 		grr_rq->load_balance_thresh += GRR_LB_THRESH;
 		raise_softirq(SCHED_SOFTIRQ_GRR);
@@ -181,9 +179,83 @@ static unsigned int get_rr_interval_grr(struct rq *rq, struct task_struct *task)
 	return 0;
 }
 
+static struct sched_grr_entity *get_next_elegible_entity(struct rq *rq, int dst_cpu) {
+	struct grr_rq *grr_rq = &rq->grr;
+	int num = 1;
+	struct sched_grr_entity *entity;
+	struct task_struct *p;
+
+	list_for_each_entry(entity, &grr_rq->queue, list) {
+		if (num >= 2) {
+			p = container_of(entity, struct task_struct, grr);
+			if (cpumask_test_cpu(dst_cpu, tsk_cpus_allowed(p)) && 
+					!task_running(rq, p))
+				return entity;
+		}
+
+		num++;
+	}
+
+	return NULL;
+}
+
+
 static void run_rebalance_domains_grr(struct softirq_action *h)
 {
-	trace_printk("Called!\n");
+	int cpu, min_running = 0, max_running = 0, first = 1;
+	struct rq *min_rq, *max_rq;
+	struct grr_rq *grr_rq;
+	struct sched_grr_entity *entity;
+	struct task_struct *p;
+	struct rq *rq;
+
+	for_each_possible_cpu(cpu) {
+		rq = cpu_rq(cpu);
+
+		raw_spin_lock(&rq->lock);
+
+		grr_rq = &rq->grr;
+
+		if (first) {
+			min_rq = max_rq = rq;
+			min_running = max_running = grr_rq->nr_running;
+			first = 0;
+
+			raw_spin_unlock(&rq->lock);
+			continue;
+		}
+
+		if (grr_rq->nr_running < min_running) {
+			min_running = grr_rq->nr_running;
+			min_rq = rq;
+		}
+
+		if (grr_rq->nr_running > max_running) {
+			max_running = grr_rq->nr_running;
+			max_rq = rq;
+		}
+
+		raw_spin_unlock(&rq->lock);
+	}
+
+	if (max_running - min_running >= 2) {
+		raw_spin_lock_irq(&max_rq->lock);
+		double_lock_balance(max_rq, min_rq);
+
+		grr_rq = &max_rq->grr;
+
+		entity = get_next_elegible_entity(max_rq, cpu_of(min_rq));
+
+		p = container_of(entity, struct task_struct, grr);
+
+		deactivate_task(max_rq, p, 0);
+		set_task_cpu(p, cpu_of(min_rq));
+		activate_task(min_rq, p, 0);
+		check_preempt_curr(min_rq, p, 0);
+
+		double_unlock_balance(max_rq, min_rq);
+		raw_spin_unlock_irq(&max_rq->lock);
+	}
 }
 
 void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq)
