@@ -18,8 +18,6 @@ void trigger_load_balance_grr(struct rq *rq, int cpu)
 		grr_rq->load_balance_thresh += GRR_LB_THRESH;
 		raise_softirq(SCHED_SOFTIRQ_GRR);
 	}
-
-	return;
 }
 
 static int
@@ -30,7 +28,6 @@ find_min_rq_cpu(void)
 
 	for_each_possible_cpu(cpu) {
 		rq = cpu_rq(cpu);
-		
 		if(first) {
 			min_running = rq->grr.nr_running;
 			min_cpu = cpu;
