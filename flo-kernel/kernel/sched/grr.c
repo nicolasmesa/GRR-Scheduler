@@ -206,13 +206,6 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
 	struct task_struct *p;
 	struct rq *rq;
 
-	trace_printk("Before:\n");
-        for_each_possible_cpu(cpu) {
-                rq = cpu_rq(cpu);
-                grr_rq = &rq->grr;
-                trace_printk("CPU: %d\tNR: %d\n", cpu, grr_rq->nr_running);
-        }
-
 	for_each_possible_cpu(cpu) {
 		rq = cpu_rq(cpu);
 
