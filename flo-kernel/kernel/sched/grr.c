@@ -206,6 +206,13 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
 	struct task_struct *p;
 	struct rq *rq;
 
+	trace_printk("Before:\n");
+        for_each_possible_cpu(cpu) {
+                rq = cpu_rq(cpu);
+                grr_rq = &rq->grr;
+                trace_printk("CPU: %d\tNR: %d\n", cpu, grr_rq->nr_running);
+        }
+
 	for_each_possible_cpu(cpu) {
 		rq = cpu_rq(cpu);
 
@@ -239,23 +246,38 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
 		raw_spin_lock_irq(&max_rq->lock);
 		double_lock_balance(max_rq, min_rq);
 
+		min_running = min_rq->grr.nr_running;
+		max_running = max_rq->grr.nr_running;
+
+		/* Maybe this changed while grabbing the locks */
+		if (max_running - min_running < 2) {
+			double_unlock_balance(max_rq, min_rq);
+			raw_spin_unlock_irq(&max_rq->lock);
+			return;
+		}
+
 		grr_rq = &max_rq->grr;
 
 		entity = get_next_elegible_entity(max_rq, cpu_of(min_rq));
 
 		if (entity != NULL) {
-			trace_printk("Entity is NOT NULL\n");
 			p = container_of(entity, struct task_struct, grr);
 
 			deactivate_task(max_rq, p, 0);
 			set_task_cpu(p, cpu_of(min_rq));
 			activate_task(min_rq, p, 0);
 			check_preempt_curr(min_rq, p, 0);
-		} else
-			trace_printk("Entity is NULL\n");
+		}
 
 		double_unlock_balance(max_rq, min_rq);
 		raw_spin_unlock_irq(&max_rq->lock);
+	}
+
+	trace_printk("After:\n");
+	for_each_possible_cpu(cpu) {
+                rq = cpu_rq(cpu);
+		grr_rq = &rq->grr;
+		trace_printk("CPU: %d\tNR: %d\n", cpu, grr_rq->nr_running);
 	}
 }
 
