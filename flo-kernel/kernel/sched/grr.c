@@ -243,12 +243,16 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
 
 		entity = get_next_elegible_entity(max_rq, cpu_of(min_rq));
 
-		p = container_of(entity, struct task_struct, grr);
+		if (entity != NULL) {
+			trace_printk("Entity is NOT NULL\n");
+			p = container_of(entity, struct task_struct, grr);
 
-		deactivate_task(max_rq, p, 0);
-		set_task_cpu(p, cpu_of(min_rq));
-		activate_task(min_rq, p, 0);
-		check_preempt_curr(min_rq, p, 0);
+			deactivate_task(max_rq, p, 0);
+			set_task_cpu(p, cpu_of(min_rq));
+			activate_task(min_rq, p, 0);
+			check_preempt_curr(min_rq, p, 0);
+		} else
+			trace_printk("Entity is NULL\n");
 
 		double_unlock_balance(max_rq, min_rq);
 		raw_spin_unlock_irq(&max_rq->lock);
