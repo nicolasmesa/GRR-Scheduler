@@ -138,6 +138,7 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *p)
 static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
 	struct sched_grr_entity *entity = &curr->grr;
+	int i;
 
 	if ((--(entity->time_slice)) > 0)
 		return;
@@ -264,13 +265,6 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
 
 		double_unlock_balance(max_rq, min_rq);
 		raw_spin_unlock_irq(&max_rq->lock);
-	}
-
-	trace_printk("After:\n");
-	for_each_possible_cpu(cpu) {
-                rq = cpu_rq(cpu);
-		grr_rq = &rq->grr;
-		trace_printk("CPU: %d\tNR: %d\n", cpu, grr_rq->nr_running);
 	}
 }
 
