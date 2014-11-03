@@ -874,6 +874,7 @@ extern const struct sched_class sched_grr_class;
 #ifdef CONFIG_SMP
 
 extern void trigger_load_balance_grr(struct rq *rq, int cpu);
+extern int get_task_group_grr(struct task_struct *p);
 extern void trigger_load_balance(struct rq *rq, int cpu);
 extern void idle_balance(int this_cpu, struct rq *this_rq);
 

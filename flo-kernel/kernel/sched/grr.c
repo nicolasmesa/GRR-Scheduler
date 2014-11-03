@@ -4,6 +4,8 @@
 #include <linux/string.h>
 
 
+static struct sched_grr_entity *get_next_elegible_entity(struct rq *rq, int dst_cpu);
+
 #ifdef CONFIG_CGROUP_SCHED
 #define PATH_MAX 4096
 
@@ -40,6 +42,12 @@ static int get_task_group(struct task_struct *p)
 
 	return ret;
 }
+
+
+int get_task_group_grr(struct task_struct *p)
+{
+	return get_task_group(p);
+}
 #endif
 
 
@@ -64,11 +72,20 @@ void trigger_load_balance_grr(struct rq *rq, int cpu)
 static int
 find_min_rq_cpu(struct task_struct *p)
 {
-	int cpu, min_cpu, min_running = 0, first = 1;
+	int cpu, min_cpu, min_running = 0, first = 1, group;
 	struct rq *rq;
+	struct grr_rq *grr_rq;
+
+	group = get_task_group(p);
 
 	for_each_possible_cpu(cpu) {
 		rq = cpu_rq(cpu);
+
+		grr_rq = &rq->grr;
+
+		if (grr_rq->group != group)
+			continue;
+
 		if(first) {
 			min_running = rq->grr.nr_running;
 			min_cpu = cpu;
@@ -85,7 +102,6 @@ find_min_rq_cpu(struct task_struct *p)
 	}
 
 	return min_cpu;
-
 }
 
 
@@ -119,10 +135,33 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 	struct grr_rq *grr_rq = &rq->grr;
 	struct  sched_grr_entity *entity;
 	struct task_struct *p;
+	int cpu;
+	struct rq *src_rq;
 
 	/* No tasks in queue */
-	if (list_empty(&grr_rq->queue))
+	if (list_empty(&grr_rq->queue)) {
+		p = NULL;
+		return p;
+		for_each_possible_cpu(cpu) {
+			src_rq = cpu_rq(cpu);
+
+			if (src_rq->grr.group != grr_rq->group)
+				continue;
+
+			double_lock_balance(rq, src_rq);
+			if (src_rq->grr.nr_running > 1) {
+				entity = get_next_elegible_entity(src_rq, cpu_of(src_rq));
+
+				if (entity != NULL)
+					p = container_of(entity, struct task_struct, grr);
+			}
+			double_unlock_balance(rq, src_rq);
+
+		}
+
 		return NULL;
+	}
+
 
 	entity = list_first_entry(&grr_rq->queue,
 		struct sched_grr_entity, list);
@@ -244,8 +283,11 @@ static struct sched_grr_entity *get_next_elegible_entity(struct rq *rq, int dst_
 
 static void run_rebalance_domains_grr(struct softirq_action *h)
 {
-	int cpu, min_running = 0, max_running = 0, first = 1;
-	struct rq *min_rq, *max_rq;
+	int cpu, min_running_g1 = 0, min_running_g2 = 0,
+			 max_running_g1 = 0, max_running_g2 = 0,
+			 first_g1 = 1, first_g2 = 1;
+
+	struct rq *min_rq_g1, *min_rq_g2, *max_rq_g1, *max_rq_g2;
 	struct grr_rq *grr_rq;
 	struct sched_grr_entity *entity;
 	struct task_struct *p;
@@ -258,58 +300,110 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
 
 		grr_rq = &rq->grr;
 
-		if (first) {
-			min_rq = max_rq = rq;
-			min_running = max_running = grr_rq->nr_running;
-			first = 0;
+		if (grr_rq->group == 1) {
+			if (first_g1) {
+				min_rq_g1 = max_rq_g1 = rq;
+				min_running_g1 = max_running_g1 = grr_rq->nr_running;
+				first_g1 = 0;
 
-			raw_spin_unlock(&rq->lock);
-			continue;
-		}
+				raw_spin_unlock(&rq->lock);
+				continue;
+			}
 
-		if (grr_rq->nr_running < min_running) {
-			min_running = grr_rq->nr_running;
-			min_rq = rq;
-		}
+			if (grr_rq->nr_running < min_running_g1) {
+				min_running_g1 = grr_rq->nr_running;
+				min_rq_g1 = rq;
+			}
 
-		if (grr_rq->nr_running > max_running) {
-			max_running = grr_rq->nr_running;
-			max_rq = rq;
+			if (grr_rq->nr_running > max_running_g1) {
+				max_running_g1 = grr_rq->nr_running;
+				max_rq_g1 = rq;
+			}
+		} else {
+			if (first_g2) {
+				min_rq_g2 = max_rq_g2 = rq;
+				min_running_g2 = max_running_g2 = grr_rq->nr_running;
+				first_g2 = 0;
+
+				raw_spin_unlock(&rq->lock);
+				continue;
+			}
+
+			if (grr_rq->nr_running < min_running_g2) {
+				min_running_g2 = grr_rq->nr_running;
+				min_rq_g2 = rq;
+			}
+
+			if (grr_rq->nr_running > max_running_g2) {
+				max_running_g2 = grr_rq->nr_running;
+				max_rq_g2 = rq;
+			}
 		}
 
 		raw_spin_unlock(&rq->lock);
 	}
 
-	if (max_running - min_running >= 2) {
-		raw_spin_lock_irq(&max_rq->lock);
-		double_lock_balance(max_rq, min_rq);
 
-		min_running = min_rq->grr.nr_running;
-		max_running = max_rq->grr.nr_running;
+	if (max_running_g1 - min_running_g1 >= 2) {
+		raw_spin_lock_irq(&max_rq_g1->lock);
+		double_lock_balance(max_rq_g1, min_rq_g1);
+
+		min_running_g1 = min_rq_g1->grr.nr_running;
+		max_running_g1 = max_rq_g1->grr.nr_running;
 
 		/* Maybe this changed while grabbing the locks */
-		if (max_running - min_running < 2) {
-			double_unlock_balance(max_rq, min_rq);
-			raw_spin_unlock_irq(&max_rq->lock);
+		if (max_running_g1 - min_running_g1 < 2) {
+			double_unlock_balance(max_rq_g1, min_rq_g1);
+			raw_spin_unlock_irq(&max_rq_g1->lock);
+		} else {
+			grr_rq = &max_rq_g1->grr;
+
+			entity = get_next_elegible_entity(max_rq_g1, cpu_of(min_rq_g1));
+
+			if (entity != NULL) {
+				p = container_of(entity, struct task_struct, grr);
+
+				deactivate_task(max_rq_g1, p, 0);
+				set_task_cpu(p, cpu_of(min_rq_g1));
+				activate_task(min_rq_g1, p, 0);
+				check_preempt_curr(min_rq_g1, p, 0);
+			}
+
+			double_unlock_balance(max_rq_g1, min_rq_g1);
+			raw_spin_unlock_irq(&max_rq_g1->lock);
+		}
+	}
+
+	if (max_running_g2 - min_running_g2 >= 2) {
+		raw_spin_lock_irq(&max_rq_g2->lock);
+                double_lock_balance(max_rq_g2, min_rq_g2);
+
+		min_running_g2 = min_rq_g2->grr.nr_running;
+		max_running_g2 = max_rq_g2->grr.nr_running;
+
+		/* Maybe this changed while grabbing the locks */
+		if (max_running_g2 - min_running_g2 < 2) {
+			double_unlock_balance(max_rq_g2, min_rq_g2);
+			raw_spin_unlock_irq(&max_rq_g2->lock);
 			return;
 		}
 
-		grr_rq = &max_rq->grr;
+		grr_rq = &max_rq_g2->grr;
 
-		entity = get_next_elegible_entity(max_rq, cpu_of(min_rq));
+		entity = get_next_elegible_entity(max_rq_g2, cpu_of(min_rq_g2));
 
 		if (entity != NULL) {
 			p = container_of(entity, struct task_struct, grr);
 
-			deactivate_task(max_rq, p, 0);
-			set_task_cpu(p, cpu_of(min_rq));
-			activate_task(min_rq, p, 0);
-			check_preempt_curr(min_rq, p, 0);
+			deactivate_task(max_rq_g2, p, 0);
+			set_task_cpu(p, cpu_of(min_rq_g2));
+			activate_task(min_rq_g2, p, 0);
+			check_preempt_curr(min_rq_g2, p, 0);
 		}
 
-		double_unlock_balance(max_rq, min_rq);
-		raw_spin_unlock_irq(&max_rq->lock);
-	}
+		double_unlock_balance(max_rq_g2, min_rq_g2);
+		raw_spin_unlock_irq(&max_rq_g2->lock);
+        }
 }
 
 void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq, int cpu)

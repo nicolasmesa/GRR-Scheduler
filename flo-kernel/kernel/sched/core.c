@@ -7352,9 +7352,9 @@ void sched_destroy_group(struct task_group *tg)
  */
 void sched_move_task(struct task_struct *tsk)
 {
-	int on_rq, running;
+	int on_rq, running, cpu;
 	unsigned long flags;
-	struct rq *rq;
+	struct rq *rq, *new_rq;
 
 	rq = task_rq_lock(tsk, &flags);
 
@@ -7379,6 +7379,31 @@ void sched_move_task(struct task_struct *tsk)
 		enqueue_task(rq, tsk, 0);
 
 	task_rq_unlock(rq, tsk, &flags);
+
+	if (tsk->policy == SCHED_GRR) {
+		cpu = tsk->sched_class->select_task_rq(tsk, 0, 0);
+		new_rq = cpu_rq(cpu);
+
+		if (new_rq == rq)
+			return;
+
+		if (running)
+			return;
+
+		if (!on_rq)
+			return;
+
+		raw_spin_lock_irq(&rq->lock);
+		double_lock_balance(rq, new_rq);
+
+		deactivate_task(rq, tsk, 0);
+		set_task_cpu(tsk, cpu);
+		activate_task(new_rq, tsk, 0);
+		check_preempt_curr(new_rq, tsk, 0);
+
+		double_unlock_balance(rq, new_rq);
+		raw_spin_unlock_irq(&rq->lock);
+	}
 }
 #endif /* CONFIG_CGROUP_SCHED */
 
