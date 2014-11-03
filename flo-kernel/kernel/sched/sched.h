@@ -122,6 +122,7 @@ struct task_group {
 
 	struct rt_bandwidth rt_bandwidth;
 #endif
+	struct grr_rq **grr_rq;
 
 	struct rcu_head rcu;
 	struct list_head list;
@@ -313,6 +314,7 @@ struct rt_rq {
 
 struct grr_rq {
 	int nr_running;
+	int group;
 	unsigned long tick_count;
 	unsigned long load_balance_thresh;
 	struct list_head queue;
@@ -1166,7 +1168,7 @@ extern void print_rt_stats(struct seq_file *m, int cpu);
 
 extern void init_cfs_rq(struct cfs_rq *cfs_rq);
 extern void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq);
-extern void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq);
+extern void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq, int cpu);
 extern void unthrottle_offline_cfs_rqs(struct rq *rq);
 
 extern void account_cfs_bandwidth_used(int enabled, int was_enabled);

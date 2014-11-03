@@ -1,6 +1,47 @@
 #include "sched.h"
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/string.h>
+
+
+#ifdef CONFIG_CGROUP_SCHED
+#define PATH_MAX 4096
+
+static char group_path[PATH_MAX];
+
+static char *task_group_path(struct task_group *tg)
+{
+        if (autogroup_path(tg, group_path, PATH_MAX))
+                return group_path;
+
+        /*
+         * May be NULL if the underlying cgroup isn't fully-created yet
+         */
+        if (!tg->css.cgroup) {
+                group_path[0] = '\0';
+                return group_path;
+        }
+        cgroup_path(tg->css.cgroup, group_path, PATH_MAX);
+        return group_path;
+}
+
+
+static int get_task_group(struct task_struct *p)
+{
+	char *path;
+	int ret = 0;
+
+	path = task_group_path(task_group(p));
+
+	if (strcmp(path, "/") == 0 || strcmp(path, "/apps") == 0)
+		ret = 1;
+	else if (strcmp(path, "/apps/bg_non_interactive") == 0)
+		ret = 2;
+
+	return ret;
+}
+#endif
+
 
 /*
  * Grouper Round-Robin scheduling class.
@@ -21,7 +62,7 @@ void trigger_load_balance_grr(struct rq *rq, int cpu)
 }
 
 static int
-find_min_rq_cpu(void)
+find_min_rq_cpu(struct task_struct *p)
 {
 	int cpu, min_cpu, min_running = 0, first = 1;
 	struct rq *rq;
@@ -57,7 +98,7 @@ select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 	int min_cpu;
 	struct rq *rq;
 
-	min_cpu = find_min_rq_cpu();
+	min_cpu = find_min_rq_cpu(p);
 	rq = cpu_rq(min_cpu);
 	//trace_printk("Selected CPU: %d\tNR: %d\n", min_cpu, rq->grr.nr_running);
 
@@ -118,8 +159,11 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct grr_rq *grr_rq = &rq->grr;
 	struct sched_grr_entity *entity = &p->grr;
+	int id;
 
 	grr_rq->nr_running++;
+
+	id = get_task_group(p);
 
 	//list_add_tail(&entity->list, &grr_rq->queue);
 	list_add(&entity->list, &grr_rq->queue);
@@ -268,9 +312,14 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
 	}
 }
 
-void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq)
+void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq, int cpu)
 {
 #ifdef CONFIG_SMP
+	if (cpu < nr_cpu_ids / 2) 
+		grr_rq->group = 1;
+	else
+		grr_rq->group = 2;
+
 	open_softirq(SCHED_SOFTIRQ_GRR, run_rebalance_domains_grr);
 #endif
 
