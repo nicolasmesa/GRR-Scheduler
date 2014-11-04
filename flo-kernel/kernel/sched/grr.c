@@ -135,32 +135,11 @@ static struct task_struct *pick_next_task_grr(struct rq *rq)
 	struct grr_rq *grr_rq = &rq->grr;
 	struct  sched_grr_entity *entity;
 	struct task_struct *p;
-	int cpu;
-	struct rq *src_rq;
 
 	/* No tasks in queue */
-	if (list_empty(&grr_rq->queue)) {
-		p = NULL;
-		return p;
-		for_each_possible_cpu(cpu) {
-			src_rq = cpu_rq(cpu);
-
-			if (src_rq->grr.group != grr_rq->group)
-				continue;
-
-			double_lock_balance(rq, src_rq);
-			if (src_rq->grr.nr_running > 1) {
-				entity = get_next_elegible_entity(src_rq, cpu_of(src_rq));
-
-				if (entity != NULL)
-					p = container_of(entity, struct task_struct, grr);
-			}
-			double_unlock_balance(rq, src_rq);
-
-		}
-
+	if (list_empty(&grr_rq->queue))
 		return NULL;
-	}
+
 
 
 	entity = list_first_entry(&grr_rq->queue,
@@ -279,6 +258,49 @@ static struct sched_grr_entity *get_next_elegible_entity(struct rq *rq, int dst_
 	return NULL;
 }
 
+
+static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
+{
+		int cpu;
+		struct rq *src_rq;
+		struct sched_grr_entity *entity;
+		struct grr_rq *grr_rq = &rq->grr;
+		struct task_struct *p;
+
+
+		if (rq->grr.nr_running == 0) {
+			for_each_possible_cpu(cpu) {
+				src_rq = cpu_rq(cpu);
+
+				if (src_rq == rq)
+					continue;
+
+				 if (src_rq->grr.group != grr_rq->group)
+					continue;
+
+				if (src_rq->grr.nr_running < 2)
+					continue;
+
+				double_lock_balance(rq, src_rq);
+
+				if (src_rq->grr.nr_running < 2) {
+					double_unlock_balance(rq, src_rq);
+					continue;
+				}
+
+				entity = get_next_elegible_entity(src_rq, cpu_of(rq));
+
+				if (entity != NULL) {
+					p = container_of(entity, struct task_struct, grr);
+					deactivate_task(src_rq, p, 0);
+					set_task_cpu(p, cpu_of(rq));
+					activate_task(rq, p, 0);
+				}
+
+				double_unlock_balance(rq, src_rq);
+			}
+		}
+}
 
 static void run_rebalance_domains_grr(struct softirq_action *h)
 {
@@ -455,4 +477,6 @@ const struct sched_class sched_grr_class = {
 
 	.prio_changed		= prio_changed_grr,
 	.switched_to		= switched_to_grr,
+
+	.pre_schedule		= pre_schedule_grr,
 };
