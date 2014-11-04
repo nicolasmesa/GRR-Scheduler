@@ -72,7 +72,7 @@ void trigger_load_balance_grr(struct rq *rq, int cpu)
 static int
 find_min_rq_cpu(struct task_struct *p)
 {
-	int cpu, min_cpu, min_running = 0, first = 1, group;
+	int cpu, min_cpu = 0, min_running = 0, first = 1, group;
 	struct rq *rq;
 	struct grr_rq *grr_rq;
 
@@ -111,7 +111,7 @@ static int
 select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 {
 
-	int min_cpu;
+	int min_cpu = 0;
 	struct rq *rq;
 
 	min_cpu = find_min_rq_cpu(p);
@@ -221,7 +221,6 @@ static void put_prev_task_grr(struct rq *rq, struct task_struct *p)
 static void task_tick_grr(struct rq *rq, struct task_struct *curr, int queued)
 {
 	struct sched_grr_entity *entity = &curr->grr;
-	int i;
 
 	if ((--(entity->time_slice)) > 0)
 		return;
@@ -287,11 +286,14 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
 			 max_running_g1 = 0, max_running_g2 = 0,
 			 first_g1 = 1, first_g2 = 1;
 
-	struct rq *min_rq_g1, *min_rq_g2, *max_rq_g1, *max_rq_g2;
-	struct grr_rq *grr_rq;
-	struct sched_grr_entity *entity;
-	struct task_struct *p;
-	struct rq *rq;
+	struct rq *min_rq_g1 = NULL;
+	struct rq *min_rq_g2 = NULL;
+	struct rq *max_rq_g1 = NULL;
+	struct rq *max_rq_g2 = NULL;
+	struct grr_rq *grr_rq = NULL;
+	struct sched_grr_entity *entity = NULL;
+	struct task_struct *p = NULL;
+	struct rq *rq = NULL;
 
 	for_each_possible_cpu(cpu) {
 		rq = cpu_rq(cpu);
