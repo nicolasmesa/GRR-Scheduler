@@ -432,17 +432,41 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
 
 int assign_groups_grr(int num_fg_1)
 {
-	int cpu, count = 0;
+	int cpu, count = 0, fg_count = 0, bg_count = 0;
+	struct rq *rq;
 
 
 	for_each_possible_cpu(cpu) {
-		if (count < num_fg_1)
-			trace_printk("Foreground!\n");
-		else
-			trace_printk("Background\n");
+		rq = cpu_rq(cpu);
 
-		count++;
+		if (rq->grr.group == FOREGROUND)
+			fg_count++;
+		else
+			bg_count++;
 	}
+
+
+	/* Nothing to do */
+	if (num_fg_1 == fg_count)
+		return 0;
+
+
+	for_each_possible_cpu(cpu) {
+		rq = cpu_rq(cpu);
+
+		if (count++ < num_fg_1) {
+			if (rq->grr.group == FOREGROUND)
+				continue;
+
+			rq->grr.group = FOREGROUND;
+		} else {
+			if (rq->grr.group == BACKGROUND)
+				continue;
+
+			rq->grr.group = BACKGROUND;
+		}
+	}
+
 
 	return 0;
 }
@@ -451,9 +475,9 @@ void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq, int cpu)
 {
 #ifdef CONFIG_SMP
 	if (cpu < nr_cpu_ids / 2) 
-		grr_rq->group = 1;
+		grr_rq->group = FOREGROUND;
 	else
-		grr_rq->group = 2;
+		grr_rq->group = BACKGROUND;
 
 	open_softirq(SCHED_SOFTIRQ_GRR, run_rebalance_domains_grr);
 #endif

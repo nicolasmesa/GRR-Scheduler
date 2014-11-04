@@ -16,6 +16,8 @@ extern __read_mostly int scheduler_running;
 #define NICE_TO_PRIO(nice)	(MAX_RT_PRIO + (nice) + 20)
 #define PRIO_TO_NICE(prio)	((prio) - MAX_RT_PRIO - 20)
 #define TASK_NICE(p)		PRIO_TO_NICE((p)->static_prio)
+#define FOREGROUND 1
+#define BACKGROUND 2
 
 /*
  * 'User priority' is the nice value converted to something we

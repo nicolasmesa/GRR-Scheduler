@@ -4315,8 +4315,6 @@ SYSCALL_DEFINE3(sched_setscheduler, pid_t, pid, int, policy,
 	return do_sched_setscheduler(pid, policy, param);
 }
 
-#define FOREGROUND 1
-#define BACKGROUND 2
 
 SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
 {
