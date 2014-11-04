@@ -4315,6 +4315,34 @@ SYSCALL_DEFINE3(sched_setscheduler, pid_t, pid, int, policy,
 	return do_sched_setscheduler(pid, policy, param);
 }
 
+#define FOREGROUND 1
+#define BACKGROUND 2
+
+SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
+{
+	int num_fg_1, ret;
+
+	if (get_current_user()->uid != 0)
+		return -EACCES;
+
+	if (numCPU < 1 || numCPU > (nr_cpu_ids - 1))
+		return -EINVAL;
+
+	if (group != FOREGROUND && group != BACKGROUND)
+		return -EINVAL;
+
+	if (group == FOREGROUND)
+		num_fg_1 = numCPU;
+	else
+		num_fg_1 = nr_cpu_ids - numCPU;
+
+	ret = assign_groups_grr(num_fg_1);
+
+
+	return 0;
+}
+
+
 /**
  * sys_sched_setparam - set/change the RT priority of a thread
  * @pid: the pid in question.

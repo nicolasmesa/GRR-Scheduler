@@ -430,6 +430,23 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
         }
 }
 
+int assign_groups_grr(int num_fg_1)
+{
+	int cpu, count = 0;
+
+
+	for_each_possible_cpu(cpu) {
+		if (count < num_fg_1)
+			trace_printk("Foreground!\n");
+		else
+			trace_printk("Background\n");
+
+		count++;
+	}
+
+	return 0;
+}
+
 void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq, int cpu)
 {
 #ifdef CONFIG_SMP
