@@ -11,9 +11,8 @@ int sched_set_CPUgroup(int numCPU, int group)
 	return syscall(378, numCPU, group);
 }
 
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
-
 	int numCPU, group;
 
 	numCPU = atoi(argv[1]);
