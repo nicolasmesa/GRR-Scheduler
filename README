@@ -1,0 +1,17 @@
+Homework 4 - Team 23 
+Nicolas Mesa, Di Ruan, Sankalp Singayapally
+
+Schedulers:
+
+Round Robin and Grouped Round Robin
+
+GRR is an extension of the RR scheduler as it supports Android's task groups.
+This GRR scheduler supports both uniprocessor as well as multiproc devices. 
+
+Test Program:
+
+System-Call to change CPU configurations is available in the test folder. 
+Running it with the appropriate arguments will change the configuration,
+as per the specification of the homework assignment. 
+
+Please review written.txt for our analysis and benchmark results.
