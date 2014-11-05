@@ -177,17 +177,10 @@ enqueue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct grr_rq *grr_rq = &rq->grr;
 	struct sched_grr_entity *entity = &p->grr;
-	int id;
 
 	grr_rq->nr_running++;
 
-	id = get_task_group(p);
-
-	//list_add_tail(&entity->list, &grr_rq->queue);
 	list_add(&entity->list, &grr_rq->queue);
-
-	//printk(KERN_WARNING "NR_RUNNING: %d\n", grr_rq->nr_running);
-	//trace_printk("SCHED: %d\n", p->policy);
 }
 
 
@@ -258,6 +251,24 @@ static struct sched_grr_entity *get_next_elegible_entity(struct rq *rq, int dst_
 	return NULL;
 }
 
+
+static struct sched_grr_entity *get_next_elegible_entity_grp(struct rq *rq, int dst_cpu, int group) {
+	struct grr_rq *grr_rq = &rq->grr;
+	int num = 1;
+	struct sched_grr_entity *entity;
+	struct task_struct *p;
+
+	list_for_each_entry(entity, &grr_rq->queue, list) {
+		if (num >= 2) {
+			p = container_of(entity, struct task_struct, grr);
+			if (cpumask_test_cpu(dst_cpu, tsk_cpus_allowed(p)) &&
+				!task_running(rq, p) && get_task_group(p) == group)
+					return entity;
+		}
+		num++;
+	}
+	return NULL;
+}
 
 static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
 {
@@ -433,7 +444,9 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
 int assign_groups_grr(int num_fg_1)
 {
 	int cpu, count = 0, fg_count = 0, bg_count = 0;
-	struct rq *rq;
+	struct rq *rq, *dst_rq;
+	struct sched_grr_entity *entity;
+	struct task_struct *p;
 
 
 	for_each_possible_cpu(cpu) {
@@ -458,12 +471,55 @@ int assign_groups_grr(int num_fg_1)
 			if (rq->grr.group == FOREGROUND)
 				continue;
 
+			dst_rq = cpu_rq(nr_cpu_ids - 1);
+
+			raw_spin_lock_irq(&rq->lock);
+			double_lock_balance(rq, dst_rq);
+
 			rq->grr.group = FOREGROUND;
+
+			entity = get_next_elegible_entity_grp(rq, cpu_of(dst_rq), BACKGROUND);		
+
+			while (entity != NULL) {
+				p = container_of(entity, struct task_struct, grr);
+
+				deactivate_task(rq, p, 0);
+				set_task_cpu(p, cpu_of(dst_rq));
+				activate_task(dst_rq, p, 0);
+				check_preempt_curr(dst_rq, p, 0);
+
+				entity = get_next_elegible_entity_grp(rq, cpu_of(dst_rq), BACKGROUND);
+			}
+
+
+			double_unlock_balance(rq, dst_rq);
+			raw_spin_unlock_irq(&rq->lock);
 		} else {
 			if (rq->grr.group == BACKGROUND)
 				continue;
 
+			dst_rq = cpu_rq(0);
+
+			raw_spin_lock_irq(&rq->lock);
+			double_lock_balance(rq, dst_rq);
+
 			rq->grr.group = BACKGROUND;
+
+			entity = get_next_elegible_entity_grp(rq, cpu_of(dst_rq), FOREGROUND);
+
+			while (entity != NULL) {
+				p = container_of(entity, struct task_struct, grr);
+
+				deactivate_task(rq, p, 0);
+				set_task_cpu(p, cpu_of(dst_rq));
+				activate_task(dst_rq, p, 0);
+				check_preempt_curr(dst_rq, p, 0);
+
+				entity = get_next_elegible_entity_grp(rq, cpu_of(dst_rq), FOREGROUND);
+			}
+
+			double_unlock_balance(rq, dst_rq);
+			raw_spin_unlock_irq(&rq->lock);
 		}
 	}
 

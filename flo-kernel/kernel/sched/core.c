@@ -4315,6 +4315,7 @@ SYSCALL_DEFINE3(sched_setscheduler, pid_t, pid, int, policy,
 	return do_sched_setscheduler(pid, policy, param);
 }
 
+static DEFINE_SPINLOCK(assign_cpus_lock);
 
 SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
 {
@@ -4334,8 +4335,12 @@ SYSCALL_DEFINE2(sched_set_CPUgroup, int, numCPU, int, group)
 	else
 		num_fg_1 = nr_cpu_ids - numCPU;
 
+
+	spin_lock(&assign_cpus_lock);
+
 	ret = assign_groups_grr(num_fg_1);
 
+	spin_unlock(&assign_cpus_lock);
 
 	return 0;
 }
