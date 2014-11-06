@@ -28,7 +28,6 @@ static char *task_group_path(struct task_group *tg)
 	}
 	cgroup_path(tg->css.cgroup, group_path, PATH_MAX);
 
-	printk("error");
 	return group_path;
 }
 
@@ -158,7 +157,7 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 
 static void yield_task_grr(struct rq *rq)
 {
-	/*printk(KERN_WARNING "NICOLAS: Called yield task\n");*/
+
 }
 
 static void
