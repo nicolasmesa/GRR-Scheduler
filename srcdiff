@@ -125,7 +125,7 @@ index 3d3de63..3de2112 100644
  	}
  	return create.result;
 diff --git a/flo-kernel/kernel/sched/core.c b/flo-kernel/kernel/sched/core.c
-index 1cee48f..9f75599 100644
+index 1cee48f..4371cff 100644
 --- a/flo-kernel/kernel/sched/core.c
 +++ b/flo-kernel/kernel/sched/core.c
 @@ -1768,7 +1768,8 @@ void sched_fork(struct task_struct *p)
@@ -237,18 +237,17 @@ index 1cee48f..9f75599 100644
  #ifdef CONFIG_FAIR_GROUP_SCHED
  		root_task_group.shares = ROOT_TASK_GROUP_LOAD;
  		INIT_LIST_HEAD(&rq->leaf_cfs_rq_list);
-@@ -7093,7 +7133,9 @@ void __init sched_init(void)
+@@ -7093,7 +7133,8 @@ void __init sched_init(void)
  	/*
  	 * During early bootup we pretend to be a normal task:
  	 */
 -	current->sched_class = &fair_sched_class;
 +	/* current->sched_class = &fair_sched_class; */
 +	current->sched_class = &sched_grr_class;
-+	printk("current->pid = %d\n", current->pid);
  
  #ifdef CONFIG_SMP
  	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
-@@ -7163,7 +7205,8 @@ static void normalize_task(struct rq *rq, struct task_struct *p)
+@@ -7163,7 +7204,8 @@ static void normalize_task(struct rq *rq, struct task_struct *p)
  	on_rq = p->on_rq;
  	if (on_rq)
  		dequeue_task(rq, p, 0);
@@ -258,22 +257,24 @@ index 1cee48f..9f75599 100644
  	if (on_rq) {
  		enqueue_task(rq, p, 0);
  		resched_task(rq->curr);
-@@ -7342,9 +7385,9 @@ void sched_destroy_group(struct task_group *tg)
-  */
- void sched_move_task(struct task_struct *tsk)
- {
--	int on_rq, running;
-+	int on_rq, running, cpu;
+@@ -7346,6 +7388,11 @@ void sched_move_task(struct task_struct *tsk)
  	unsigned long flags;
--	struct rq *rq;
-+	struct rq *rq, *new_rq;
+ 	struct rq *rq;
  
++#ifdef CONFIG_SMP
++	int cpu;
++	struct rq *new_rq;
++#endif
++
  	rq = task_rq_lock(tsk, &flags);
  
-@@ -7369,6 +7412,31 @@ void sched_move_task(struct task_struct *tsk)
+ 	running = task_current(rq, tsk);
+@@ -7369,6 +7416,34 @@ void sched_move_task(struct task_struct *tsk)
  		enqueue_task(rq, tsk, 0);
  
  	task_rq_unlock(rq, tsk, &flags);
++
++#ifdef CONFIG_SMP
 +
 +	if (tsk->policy == SCHED_GRR) {
 +		cpu = tsk->sched_class->select_task_rq(tsk, 0, 0);
@@ -299,10 +300,11 @@ index 1cee48f..9f75599 100644
 +		double_unlock_balance(rq, new_rq);
 +		raw_spin_unlock_irq(&rq->lock);
 +	}
++#endif
  }
  #endif /* CONFIG_CGROUP_SCHED */
  
-@@ -7724,8 +7792,9 @@ static void cpu_cgroup_attach(struct cgroup *cgrp,
+@@ -7724,8 +7799,9 @@ static void cpu_cgroup_attach(struct cgroup *cgrp,
  {
  	struct task_struct *task;
  
@@ -315,17 +317,21 @@ index 1cee48f..9f75599 100644
  static void
 diff --git a/flo-kernel/kernel/sched/grr.c b/flo-kernel/kernel/sched/grr.c
 new file mode 100644
-index 0000000..b28d50a
+index 0000000..30bad6f
 --- /dev/null
 +++ b/flo-kernel/kernel/sched/grr.c
-@@ -0,0 +1,555 @@
+@@ -0,0 +1,566 @@
 +#include "sched.h"
 +#include <linux/slab.h>
 +#include <linux/interrupt.h>
 +#include <linux/string.h>
 +
++#ifdef CONFIG_SMP
++
 +static struct sched_grr_entity
 +*get_next_elegible_entity(struct rq *rq, int dst_cpu);
++
++#endif
 +
 +#ifdef CONFIG_CGROUP_SCHED
 +#define PATH_MAX 4096
@@ -464,7 +470,7 @@ index 0000000..b28d50a
 +{
 +	struct grr_rq *grr_rq = &rq->grr;
 +	struct sched_grr_entity *entity = &p->grr;
-+	
++
 +	if (grr_rq->nr_running) {
 +		grr_rq->nr_running--;
 +		list_del(&entity->list);
@@ -528,6 +534,8 @@ index 0000000..b28d50a
 +	return 0;
 +}
 +
++#ifdef CONFIG_SMP
++
 +static struct sched_grr_entity *get_next_elegible_entity(struct rq *rq,
 +	int dst_cpu)
 +{
@@ -568,6 +576,7 @@ index 0000000..b28d50a
 +	}
 +	return NULL;
 +}
++
 +
 +static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
 +{
@@ -740,6 +749,7 @@ index 0000000..b28d50a
 +	}
 +}
 +
++
 +int assign_groups_grr(int num_fg_1)
 +{
 +	int cpu, count = 0, fg_count = 0, bg_count = 0;
@@ -824,6 +834,8 @@ index 0000000..b28d50a
 +	return 0;
 +}
 +
++#endif
++
 +void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq, int cpu)
 +{
 +#ifdef CONFIG_SMP
@@ -871,8 +883,9 @@ index 0000000..b28d50a
 +
 +	.prio_changed		= prio_changed_grr,
 +	.switched_to		= switched_to_grr,
-+
++#ifdef CONFIG_SMP
 +	.pre_schedule		= pre_schedule_grr,
++#endif
 +};
 diff --git a/flo-kernel/kernel/sched/rt.c b/flo-kernel/kernel/sched/rt.c
 index 8f32475..dfbea87 100644
