@@ -112,8 +112,6 @@ select_task_rq_grr(struct task_struct *p, int sd_flag, int flags)
 
 	min_cpu = find_min_rq_cpu(p);
 	rq = cpu_rq(min_cpu);
-	/*trace_printk("Selected CPU: %d\tNR: %d\n", min_cpu,
-rq->grr.nr_running);*/
 	return min_cpu;
 }
 #endif /* CONFIG_SMP */
@@ -123,7 +121,6 @@ rq->grr.nr_running);*/
 static void check_preempt_curr_grr(struct rq *rq,
 		struct task_struct *p, int flags)
 {
-	/*printk(KERN_WARNING "NICOLAS: Check preempt curr\n");*/
 }
 
 static struct task_struct *pick_next_task_grr(struct rq *rq)
@@ -160,12 +157,10 @@ static void yield_task_grr(struct rq *rq)
 	struct task_struct *curr = rq->curr;
 	struct sched_grr_entity *entity = &curr->grr;
 
-	trace_printk("Called: %d\n", curr->pid);
 	if (rq->grr.nr_running <= 1)
 		return;
 
 	list_move(&rq->grr.queue, &entity->list);
-	trace_printk("Moved\n");
 }
 
 static void
