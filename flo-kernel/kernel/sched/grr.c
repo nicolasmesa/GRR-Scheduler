@@ -3,8 +3,12 @@
 #include <linux/interrupt.h>
 #include <linux/string.h>
 
+#ifdef CONFIG_SMP
+
 static struct sched_grr_entity
 *get_next_elegible_entity(struct rq *rq, int dst_cpu);
+
+#endif
 
 #ifdef CONFIG_CGROUP_SCHED
 #define PATH_MAX 4096
@@ -207,6 +211,8 @@ static unsigned int get_rr_interval_grr(struct rq *rq,
 	return 0;
 }
 
+#ifdef CONFIG_SMP
+
 static struct sched_grr_entity *get_next_elegible_entity(struct rq *rq,
 	int dst_cpu)
 {
@@ -247,6 +253,7 @@ static struct sched_grr_entity *get_next_elegible_entity_grp(
 	}
 	return NULL;
 }
+
 
 static void pre_schedule_grr(struct rq *rq, struct task_struct *prev)
 {
@@ -419,6 +426,7 @@ static void run_rebalance_domains_grr(struct softirq_action *h)
 	}
 }
 
+
 int assign_groups_grr(int num_fg_1)
 {
 	int cpu, count = 0, fg_count = 0, bg_count = 0;
@@ -503,6 +511,8 @@ int assign_groups_grr(int num_fg_1)
 	return 0;
 }
 
+#endif
+
 void init_grr_rq(struct grr_rq *grr_rq, struct rq *rq, int cpu)
 {
 #ifdef CONFIG_SMP
@@ -550,6 +560,7 @@ const struct sched_class sched_grr_class = {
 
 	.prio_changed		= prio_changed_grr,
 	.switched_to		= switched_to_grr,
-
+#ifdef CONFIG_SMP
 	.pre_schedule		= pre_schedule_grr,
+#endif
 };

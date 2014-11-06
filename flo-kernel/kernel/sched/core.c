@@ -7384,9 +7384,14 @@ void sched_destroy_group(struct task_group *tg)
  */
 void sched_move_task(struct task_struct *tsk)
 {
-	int on_rq, running, cpu;
+	int on_rq, running;
 	unsigned long flags;
-	struct rq *rq, *new_rq;
+	struct rq *rq;
+
+#ifdef CONFIG_SMP
+	int cpu;
+	struct rq *new_rq;
+#endif
 
 	rq = task_rq_lock(tsk, &flags);
 
@@ -7412,6 +7417,8 @@ void sched_move_task(struct task_struct *tsk)
 
 	task_rq_unlock(rq, tsk, &flags);
 
+#ifdef CONFIG_SMP
+
 	if (tsk->policy == SCHED_GRR) {
 		cpu = tsk->sched_class->select_task_rq(tsk, 0, 0);
 		new_rq = cpu_rq(cpu);
@@ -7436,6 +7443,7 @@ void sched_move_task(struct task_struct *tsk)
 		double_unlock_balance(rq, new_rq);
 		raw_spin_unlock_irq(&rq->lock);
 	}
+#endif
 }
 #endif /* CONFIG_CGROUP_SCHED */
 
