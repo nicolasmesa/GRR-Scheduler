@@ -143,7 +143,7 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct grr_rq *grr_rq = &rq->grr;
 	struct sched_grr_entity *entity = &p->grr;
-	
+
 	if (grr_rq->nr_running) {
 		grr_rq->nr_running--;
 		list_del(&entity->list);

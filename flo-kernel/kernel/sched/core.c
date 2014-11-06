@@ -7133,7 +7133,8 @@ void __init sched_init(void)
 	/*
 	 * During early bootup we pretend to be a normal task:
 	 */
-	current->sched_class = &fair_sched_class;
+	/* current->sched_class = &fair_sched_class; */
+	current->sched_class = &sched_grr_class;
 
 #ifdef CONFIG_SMP
 	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
