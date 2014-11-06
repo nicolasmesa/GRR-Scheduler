@@ -3,9 +3,9 @@ LD := arm-none-linux-gnueabi-gcc
 CFLAGS := -g -Wall -Werror -static
 LDFLAGS := -static
 
-OBJECTS := test.o
+OBJECTS := syscall.o
 
-all: test 
+all: syscall
 
 
 : $(OBJECTS)

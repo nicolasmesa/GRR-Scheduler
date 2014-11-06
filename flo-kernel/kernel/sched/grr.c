@@ -157,7 +157,15 @@ dequeue_task_grr(struct rq *rq, struct task_struct *p, int flags)
 
 static void yield_task_grr(struct rq *rq)
 {
+	struct task_struct *curr = rq->curr;
+	struct sched_grr_entity *entity = &curr->grr;
 
+	trace_printk("Called: %d\n", curr->pid);
+	if (rq->grr.nr_running <= 1)
+		return;
+
+	list_move(&rq->grr.queue, &entity->list);
+	trace_printk("Moved\n");
 }
 
 static void
