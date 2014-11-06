@@ -4,7 +4,8 @@
 #include <linux/string.h>
 
 
-static struct sched_grr_entity *get_next_elegible_entity(struct rq *rq, int dst_cpu);
+static struct sched_grr_entity 
+*get_next_elegible_entity(struct rq *rq, int dst_cpu);
 
 #ifdef CONFIG_CGROUP_SCHED
 #define PATH_MAX 4096
@@ -13,18 +14,18 @@ static char group_path[PATH_MAX];
 
 static char *task_group_path(struct task_group *tg)
 {
-        if (autogroup_path(tg, group_path, PATH_MAX))
+	if (autogroup_path(tg, group_path, PATH_MAX))
                 return group_path;
 
-        /*
-         * May be NULL if the underlying cgroup isn't fully-created yet
-         */
-        if (!tg->css.cgroup) {
-                group_path[0] = '\0';
-                return group_path;
-        }
-        cgroup_path(tg->css.cgroup, group_path, PATH_MAX);
-        return group_path;
+	/*
+	 * May be NULL if the underlying cgroup isn't fully-created yet
+	 */
+	if (!tg->css.cgroup) {
+		group_path[0] = '\0';
+		return group_path;
+	}
+	cgroup_path(tg->css.cgroup, group_path, PATH_MAX);
+	return group_path;
 }
 
 
